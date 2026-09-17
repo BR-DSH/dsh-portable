@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DshDesktop</AssemblyName>
+    <RootNamespace>DshDesktop</RootNamespace>
+    <ApplicationIcon>..\DshHub\DshHub.ico</ApplicationIcon>
+    <ApplicationManifest>..\DshHub\app.manifest</ApplicationManifest>
+    <Version>1.0.0</Version>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 共享引擎 -->
+    <Compile Include="..\DshCore\DshCore.cs" />
+    <!-- 复用 DshHub 的确认对话框与图标 -->
+    <Page Include="..\DshHub\AskDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="..\DshHub\AskDialog.xaml.cs" />
+    <Resource Include="..\DshHub\whale-256.png" />
+    <Resource Include="..\DshHub\whale-48.png" />
+    <Resource Include="..\DshHub\whale-light.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+</Project>
