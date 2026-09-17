@@ -1,0 +1,48 @@
+# =============================================================
+# DeepSeek Harness (DSH) 共享仓库 .gitattributes
+# 用途：保证所有电脑 clone/更新后得到一致的换行符，避免 Windows
+# 脚本（.bat/.cmd/.ps1）因 LF/CRLF 差异而失效。
+#   - 仓库内统一存 LF
+#   - 检出到工作区：Windows 脚本一律 CRLF，其余文本按 autocrlf 规则
+# =============================================================
+
+# Windows 脚本强制 CRLF（脱离各机器 core.autocrlf 设置）
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.vbs   text eol=crlf
+
+# 常规文本按内容自动识别，仓库内归一化为 LF
+*.txt   text
+*.md    text
+*.yml   text
+*.yaml  text
+*.json  text
+*.js    text
+*.ts    text
+*.cjs   text
+*.mjs   text
+*.css   text
+*.html  text
+*.xml   text
+*.svg   text
+*.tsv   text
+*.csv   text
+
+# 二进制（明确不做换行转换）
+*.exe   binary
+*.dll   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.webp  binary
+*.gif   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.node  binary
+*.dat   binary
+*.bin   binary
