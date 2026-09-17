@@ -26,7 +26,7 @@ function Get-TrackedPlugins {
     return @(
         @{ name = '@linxin666/dsh-web-all'; label = 'Web UI 全家桶' },
         @{ name = 'dsh-doc';                  label = 'dsh-doc 本地文档/OCR' },
-        @{ name = '@liustack/modsearch';      label = 'modsearch 联网搜索' }
+        @{ name = 'dsh-free-search';          label = 'Free Search 联网搜索' }
     )
 }
 $pluginPkgs = Get-TrackedPlugins

@@ -22,4 +22,4 @@ minimumReleaseAgeExclude:
   - '@morlay/session-branch@0.0.11'
   - '@morlay/session-rdb@0.0.11'
   - '@morlay/ui-conversation-message-actions@0.0.11'
-  - '@liustack/modsearch@5.10.0'
+  - 'dsh-free-search@0.4.28'

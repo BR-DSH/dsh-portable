@@ -21,8 +21,9 @@
 
 - `@deepseek-ai/dsh` **0.1.5-rc.1**
 - Web UI 全家桶 `@linxin666/dsh-web-all` **0.3.21**
-- `@liustack/modsearch` **5.10.2** ／ `dsh-doc` **0.1.1**
+- `dsh-free-search` **0.4.28** ／ `dsh-doc` **0.1.1**
 - 本地插件 `dsh-endfield-boot` 1.0.0 ／ `dsh-pet-perlica` 0.1.0
+- 佩丽卡桌面宠物随包提供但**默认不加载**（`profiles/web/cordis.patch.yml` 中该行 `disabled: true`，改成 `false` 重启即启用）
 - Node **v24.19.0** ／ pnpm **11.19.0**
 
 ---
@@ -47,7 +48,7 @@
 | 不需要网络 | 需要网络 |
 | --- | --- |
 | 启动、会话、文件读写、代码执行、插件加载 | 调用 LLM API（DeepSeek 官方 / 超算平台） |
-| 依赖重建（首启） | 联网搜索（modsearch）、X 搜索 |
+| 依赖重建（首启） | 联网搜索（dsh-free-search） |
 | PDF/Word/Excel/PPT 解析 + OCR（全本地） | cloudflared 内网穿透隧道（如需使用） |
 
 > 更新检查已由启动脚本强制关闭（`DSH_NO_UPDATE_CHECK=1`），离线不会卡在检查更新上。
@@ -107,23 +108,3 @@ Windows 11 与现代 Windows 10（带 Edge）通常已预装，**不需要做任
 - 首次运行时会自行生成 `app-npm\.env` 模板和 `dsh-home\.anonymous-user-id`。
 - 默认权限预设为 `danger-full-access`（与开发机一致），如需收紧请改
   `dsh-home\settings.yaml`。
-
----
-
-## 七、公司网络有 TLS 代理时（重要）
-
-不少公司网络用**中间人代理**替换 HTTPS 证书。Windows 信任它，但 **Node 用自己的 CA 列表**，
-于是会出现：
-
-- `pnpm` 报 `SELF_SIGNED_CERT_IN_CHAIN`（本包已通过"依赖实体化"规避，正常不会再发生）
-- 调用模型 API 时报 `SELF_SIGNED_CERT_IN_CHAIN` / `UNABLE_TO_VERIFY_LEAF_SIGNATURE`
-
-**解法**：在包根目录运行随包脚本，它会抓取实际证书链并注入信任：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File fix-corp-cert.ps1
-```
-
-然后在脚本提示下 `stop-dsh.bat` → `start-dsh.bat` 重启即可。
-脚本会把结果写进 `app-npm\.env` 的 `NODE_EXTRA_CA_CERTS`，`start-dsh.ps1` 会自动传给 DSH 子进程。
-如果你的模型端点不是 `api.deepseek.com` / `api.scnet.cn`，先编辑脚本顶部的 `$targets`。

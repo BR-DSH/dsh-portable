@@ -8,6 +8,9 @@
 - insert:
     - id: pet-perlica
       name: 'dsh-pet-perlica'
+      # 佩丽卡随包提供但默认不加载：把下面的 disabled 改成 false（或删掉这一行），
+      # 然后重启 DSH 即可启用。
+      disabled: true
 
 # dsh-doc: fully local PDF/Office/OCR. runtimeDir is resolved at mount time
 # from DSH_HOME (set by start-dsh.ps1 / dsh.cmd), so the whole portable

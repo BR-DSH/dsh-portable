@@ -71,7 +71,7 @@ OLLAMA_API_KEY=ollama        # Ollama 本地模型用（可选）
 { "plugins": [
   { "name": "@linxin666/dsh-web-all", "label": "Web UI 全家桶" },
   { "name": "dsh-doc",                 "label": "dsh-doc 文档/OCR" },
-  { "name": "@liustack/modsearch",     "label": "modsearch 联网搜索" }
+  { "name": "dsh-free-search",          "label": "Free Search 联网搜索" }
 ] }
 ```
 
@@ -79,15 +79,18 @@ OLLAMA_API_KEY=ollama        # Ollama 本地模型用（可选）
   右侧面板、令牌统计、远程运维等（全家桶全量启用）。
 - **dsh-doc**：PDF/Word/Excel/PPT 与扫描件全本地解析 + OCR（CPython + Tesseract），
   运行时在 `dsh-home\runtimes\dshdoc-runtime-win32-x64\`，随包移动。
-- **modsearch**：联网搜索插件。提供 `web_search` / `x_search` / `read_page`，
-  免 Key 用 Firecrawl 免费额度；若遇 IP 风控可配自己的 key：
-  ```
-  node dsh-home\profiles\web\node_modules\@liustack\modsearch\dist\main.js config set firecrawl.apiKey <key>
-  ```
-  搜索 X 需另装 Grok CLI（`grok` 登录）。key 存在 `~/.modsearch\config.json`（用户目录，
-  不入 git）；也可在 `app-npm\.env` 设 `FIRECRAWL_API_KEY` 随包带（`start-dsh.ps1` 会读 .env 注入环境）。
+- **Free Search**（`dsh-free-search`）：联网搜索插件，注册进原生 `web_search`。
+  12 个引擎可切换、**免 Key 自动故障转移**（默认 Bing，中文优化）；免 Key 的有
+  `bing` / `ddg` / `ddg-lite` / `searxng` / `anysearch` / `exa`(MCP) / `tavily`(keyless) /
+  `keenable`(MCP) / `firecrawl`(keyless)，需 Key 的有 `parallel` / `perplexity` / `deepseek-official`。
+  任一引擎被限流或失败会自动轮换到下一个（结果顶部注明实际生效的引擎），
+  不会因单引擎挂掉而整个搜不了。换引擎：设置 → 插件 → **Free Search** 卡片，
+  或聊天框输入 `/free-search-engine`；也可写进 `dsh-home\settings.yaml` 的 `free-search:` 段
+  （`provider` / `bingMarket` / `searxngInstances`）。
 - **佩丽卡桌面宠物**（`dsh-pet-perlica`，本地插件在 `plugins\`）：浮动 Q 版精灵，
   随 agent 活动切换动画，可拖动记忆位置。
+  **随包提供但默认关闭**：把 `dsh-home\profiles\web\cordis.patch.yml` 里该行的
+  `disabled: true` 改成 `false`（或删掉该行），重启 DSH 即可启用。
 - **本地插件**（`plugins\dsh-endfield-boot` 等）以 `link:` 依赖挂载，
   `start-dsh.ps1` 首启自动重建 junction 链接。
 
@@ -185,8 +188,8 @@ git pull                                      # 后续拉新代码 / 新 exe / �
 - **启动失败**：看 `logs\dsh-web.err.log` 最后几行。
 - **端口被占用**：`start-dsh.ps1 -Port 1234`。
 - **换电脑**：整个文件夹拷贝/解压即可，无需重装；先确保 `store\` 完整可离线恢复。
-- **联网搜索被 IP 风控**：配 Firecrawl key（见上「modsearch」）。
-- **搜不到 X**：需装 Grok CLI 并登录（modsearch 的 X 源只走 grok）。
+- **联网搜索被限流**：设置 → 插件 → **Free Search** 里换引擎，或填自己的 API Key（Tavily 每月 1000 次免费、免绑卡）。
+- **X（推特）搜索**：本版本不含（随 modsearch 一并移除）；需要请自行安装相应插件。
 - **内嵌浏览器点了链接卡住**：外部链接已改为交给系统默认浏览器；
   万一界面异常点控制条「刷新界面」恢复。
 

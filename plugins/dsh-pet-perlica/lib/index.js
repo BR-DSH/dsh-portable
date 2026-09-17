@@ -141,17 +141,17 @@ const PRICING_URL = 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/'
 const PEAK_PRICING_START_MS = Date.UTC(2026, 7, 16, 16, 0, 0)
 const MAX_BASE_URL_LENGTH = 256
 
-/** Current (pre-peak) flat pricing: CNY per million tokens. */
+/** Fallback flat pricing = 空闲时段 official rate: CNY per million tokens. */
 const CURRENT_PRESETS = {
-  flash: { cacheRead: 0.02, input: 1, output: 2 },
-  pro: { cacheRead: 0.025, input: 3, output: 6 },
+  flash: { cacheRead: 0.02, input: 1, output: 4 },
+  pro: { cacheRead: 0.15, input: 4.5, output: 13.5 },
 }
 
-/** Peak-hour pricing (from 2026-08-17); off-peak is half of peak. */
+/** Fallback peak/off-peak pricing (official, 2026-09); off-peak is half of peak. */
 const PEAK_PRESETS = {
   flash: {
-    offPeak: { cacheRead: 0.05, input: 1.5, output: 4.5 },
-    peak: { cacheRead: 0.1, input: 3.0, output: 9.0 },
+    offPeak: { cacheRead: 0.02, input: 1, output: 4 },
+    peak: { cacheRead: 0.04, input: 2, output: 8 },
   },
   pro: {
     offPeak: { cacheRead: 0.15, input: 4.5, output: 13.5 },
@@ -159,9 +159,18 @@ const PEAK_PRESETS = {
   },
 }
 
-/** Provider ids routed to each billing bucket. */
-const OFFICIAL_PROVIDER = 'deepseek'
+/**
+ * Provider ids routed to each billing bucket. The native DeepSeek adapter
+ * registers `deepseek-official` (older compositions used `deepseek`), so any
+ * id containing "deepseek" prices as the official route; SCNet Token Plan
+ * routes through `supercompute`.
+ */
 const SCNET_PROVIDER = 'supercompute'
+
+/** Whether a request-header provider id bills as official DeepSeek (CNY). */
+function isOfficialProvider(provider) {
+  return provider.includes('deepseek')
+}
 
 /**
  * SCNet Token Plan per-model rates: Credits per million tokens, from the
@@ -215,9 +224,9 @@ function foldProviderUsage(session) {
     if (event.type !== 'assistant/message') continue
     const usage = event.data.usage
     if (usage === undefined || current === undefined) continue
-    const target = current.provider === OFFICIAL_PROVIDER
-      ? buckets.official
-      : current.provider === SCNET_PROVIDER ? buckets.supercompute : undefined
+    const target = current.provider === SCNET_PROVIDER
+      ? buckets.supercompute
+      : isOfficialProvider(current.provider) ? buckets.official : undefined
     if (target === undefined) continue
     const row = target[current.model] ?? (target[current.model] = { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 })
     row.input += Number(usage.inputTokens) || 0
@@ -231,9 +240,14 @@ function foldProviderUsage(session) {
 const PRICE_RE = /(\d+(?:\.\d+)?)\s*元/
 const MODEL_RE = /deepseek-v4-(flash|pro)\s+空闲时段\s+(\d+(?:\.\d+)?)元\s+(\d+(?:\.\d+)?)元\s+(\d+(?:\.\d+)?)元\s+高峰时段\s+(\d+(?:\.\d+)?)元\s+(\d+(?:\.\d+)?)元\s+(\d+(?:\.\d+)?)元/gi
 
-/** Whether the current Beijing time is a peak hour: 9-12 and 14-18. */
+/**
+ * Whether the current Beijing time is a peak hour. Official policy: peak is
+ * Mon-Fri 09:00-12:00 and 14:00-18:00; weekends are off-peak all day.
+ */
 function isPeakHour(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Shanghai', hour: 'numeric', hour12: false }).formatToParts(now)
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Shanghai', hour: 'numeric', hour12: false, weekday: 'short' }).formatToParts(now)
+  const weekday = parts.find((p) => p.type === 'weekday')?.value
+  if (weekday === 'Sat' || weekday === 'Sun') return false
   const hour = Number(parts.find((p) => p.type === 'hour')?.value)
   if (Number.isNaN(hour)) return false
   return (hour >= 9 && hour < 12) || (hour >= 14 && hour < 18)
@@ -288,6 +302,32 @@ function parsePeakTable(html) {
   return result
 }
 
+/**
+ * Parse the 2026-09 pricing layout: each metric row carries 空闲时段 and
+ * 高峰时段 cells, with one column per family (flash first, then pro). Returns
+ * `{ current, peak }` where `current` is the 空闲时段 table, or undefined when
+ * the layout is not recognized.
+ */
+function parsePricingTable(html) {
+  const text = stripHtml(html)
+  const m = /百万tokens输入\s*（缓存命中）\s*空闲时段\s*([\d.]+)元\s*([\d.]+)元\s*高峰时段\s*([\d.]+)元\s*([\d.]+)元[\s\S]{0,200}?百万tokens输入\s*（缓存未命中）\s*空闲时段\s*([\d.]+)元\s*([\d.]+)元\s*高峰时段\s*([\d.]+)元\s*([\d.]+)元[\s\S]{0,200}?百万tokens输出\s*空闲时段\s*([\d.]+)元\s*([\d.]+)元\s*高峰时段\s*([\d.]+)元\s*([\d.]+)元/.exec(text)
+  if (m === null) return undefined
+  const n = (i) => Number(m[i])
+  const offFlash = { cacheRead: n(1), input: n(5), output: n(9) }
+  const offPro = { cacheRead: n(2), input: n(6), output: n(10) }
+  const peakFlash = { cacheRead: n(3), input: n(7), output: n(11) }
+  const peakPro = { cacheRead: n(4), input: n(8), output: n(12) }
+  const valid = (p) => Object.values(p).every((v) => Number.isFinite(v) && v > 0)
+  if (!valid(offFlash) || !valid(peakFlash) || !valid(offPro) || !valid(peakPro)) return undefined
+  return {
+    current: { flash: offFlash, pro: offPro },
+    peak: {
+      flash: { offPeak: offFlash, peak: peakFlash },
+      pro: { offPeak: offPro, peak: peakPro },
+    },
+  }
+}
+
 async function fetchPricing(fetchImpl = globalThis.fetch, timeoutMs = 15_000) {
   const fetchedAt = Date.now()
   try {
@@ -301,6 +341,9 @@ async function fetchPricing(fetchImpl = globalThis.fetch, timeoutMs = 15_000) {
     }
     if (!response.ok) return { fetchedAt, error: `pricing page HTTP ${response.status}` }
     const html = await response.text()
+    const parsed = parsePricingTable(html)
+    if (parsed !== undefined) return { fetchedAt, current: parsed.current, peak: parsed.peak }
+    // 旧版页面布局兜底（页面若回退仍可用）
     const current = parseCurrentTable(html)
     if (current === undefined) return { fetchedAt, error: 'pricing table not found' }
     const peak = parsePeakTable(html)
